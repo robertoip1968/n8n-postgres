@@ -1,0 +1,18 @@
+
+# ===== Ajuste para o seu ambiente =====
+DOMAIN=ia.cursatto.com.br
+TIMEZONE=America/Sao_Paulo
+
+# ===== Banco (Postgres) =====
+POSTGRES_DB=n8n
+POSTGRES_USER=n8n_user
+POSTGRES_PASSWORD=troque_esta_senha_segura
+
+# ===== n8n (autenticação opcional do Editor) =====
+N8N_BASIC_AUTH_ACTIVE=true
+N8N_BASIC_AUTH_USER=admin
+N8N_BASIC_AUTH_PASSWORD=troque_esta_senha_segura
+
+# ===== Criptografia interna do n8n (OBRIGATÓRIO) =====
+# Gere com:  openssl rand -base64 32
+N8N_ENCRYPTION_KEY=COLE_A_CHAVE_GERADA_AQUI
