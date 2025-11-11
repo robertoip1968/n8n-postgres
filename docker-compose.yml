@@ -1,0 +1,102 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: n8n_postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - TZ=${TIMEZONE}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - n8n-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  n8n:
+    image: n8nio/n8n:1.118.2
+    container_name: n8n
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # expõe apenas para o Apache local (cPanel) fazer o proxy
+    ports:
+      - "127.0.0.1:5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    environment:
+      # Banco
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+
+      # URL pública e cookies
+      - N8N_HOST=ia.cursatto.com.br
+      - N8N_PROTOCOL=https
+      - WEBHOOK_URL=https://ia.cursatto.com.br/
+      - N8N_EDITOR_BASE_URL=https://ia.cursatto.com.br
+      - N8N_SECURE_COOKIE=true
+
+      # Proxy confiável (corrige o erro X-Forwarded-For / Connection lost)
+      - N8N_TRUSTED_PROXIES=127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,100.64.0.0/10,162.240.234.38
+      - N8N_SECURITY_TRUSTED_PROXIES=127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,100.64.0.0/10,162.240.234.38
+
+      # Recomendações
+      - N8N_RUNNERS_ENABLED=true
+      - N8N_GIT_NODE_DISABLE_BARE_REPOS=true
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+
+      # Fuso/crypto
+      - GENERIC_TIMEZONE=${TIMEZONE}
+      - TZ=${TIMEZONE}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+
+      # (Opcional) Basic Auth do editor
+      # - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE}
+      # - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+      # - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+
+    stop_grace_period: 1m
+    networks:
+      - n8n-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:5678/rest/health >/dev/null || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+
+  adminer:
+    image: adminer:latest
+    container_name: adminer
+    restart: unless-stopped
+    environment:
+      - ADMINER_DEFAULT_SERVER=postgres
+      - TZ=${TIMEZONE}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - n8n-net
+    # expõe só localmente; Apache fará o proxy para /adminer/
+    ports:
+      - "127.0.0.1:8082:8080"
+
+networks:
+  n8n-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  n8n_data:
