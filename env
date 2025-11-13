@@ -1,3 +1,4 @@
+# Arquivo .env - Na mesma pasta do docker-compose.yml
 
 # Fuso
 TIMEZONE=America/Cuiaba
