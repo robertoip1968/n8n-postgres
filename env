@@ -1,16 +1,18 @@
-# Arquivo .env - Na mesma pasta do docker-compose.yml
-
 # Fuso
 TIMEZONE=America/Cuiaba
 
+# Postgres
 POSTGRES_USER=n8n
 POSTGRES_PASSWORD=PostgresMuitoForte123!
 POSTGRES_DB=n8n
 
+# Basic Auth do editor (recomendado em produção)
 N8N_BASIC_AUTH_ACTIVE=false
-# N8N_BASIC_AUTH_USER=admin
-# N8N_BASIC_AUTH_PASSWORD=AdminForte456!
-# N8N_LOG_LEVEL=debug
+N8N_BASIC_AUTH_USER=admin
+N8N_BASIC_AUTH_PASSWORD=AdminForte456!
+
+N8N_USER_MANAGEMENT_DISABLED=false
+N8N_BASIC_AUTH_ACTIVE=false
 
 # URL pública do n8n
 N8N_PORT=5678
@@ -21,16 +23,18 @@ N8N_PROXY_HOPS=1
 LETSENCRYPT_EMAIL=suporte@cursatto.com.br
 DOMAIN_NAME=ia.cursatto.com.br
 
-# com barra final
+# URLs do n8n
 WEBHOOK_URL=https://ia.cursatto.com.br/
-# sem barra final
 N8N_EDITOR_BASE_URL=https://ia.cursatto.com.br
 
 # Push por SSE (compatível com Apache)
 N8N_PUSH_BACKEND=sse
 
-# Origens permitidas (sem espaços)
+# Origens permitidas (SEM espaços; use a URL com esquema https)
 N8N_SECURITY_ALLOWED_ORIGINS=https://ia.cursatto.com.br
 
+# Chave de criptografia (gere com: openssl rand -base64 32)
 N8N_ENCRYPTION_KEY=z82TJlixy2Sul/lpcQRp0a+fxTCjuos+Da7/20ezaMo=
 
+# (Opcional) Logs mais verbosos para diagnóstico
+N8N_LOG_LEVEL=debug
