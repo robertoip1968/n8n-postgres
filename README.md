@@ -58,120 +58,14 @@ sudo chown -R 1000:1000 ~/n8n-docker/data/n8n
 
 ## 2) Arquivo `.env` (exemplo funcional)
 
-Crie `~/n8n-docker/.env` (ajuste domínio, senhas e **key**):
-
-```dotenv
-# Fuso
-TIMEZONE=America/Cuiaba
-
-# Postgres
-POSTGRES_USER=n8n
-POSTGRES_PASSWORD=PostgresMuitoForte123!
-POSTGRES_DB=n8n
-
-# Basic Auth do editor (recomendado em produção)
-N8N_BASIC_AUTH_ACTIVE=true
-N8N_BASIC_AUTH_USER=admin
-N8N_BASIC_AUTH_PASSWORD=AdminForte456!
-
-# URL pública do n8n
-N8N_PORT=5678
-N8N_HOST=ia.cursatto.com.br
-N8N_PROTOCOL=https
-N8N_PROXY_HOPS=1
-
-LETSENCRYPT_EMAIL=suporte@cursatto.com.br
-DOMAIN_NAME=ia.cursatto.com.br
-
-# URLs do n8n
-WEBHOOK_URL=https://ia.cursatto.com.br/
-N8N_EDITOR_BASE_URL=https://ia.cursatto.com.br
-
-# Push por SSE (compatível com Apache)
-N8N_PUSH_BACKEND=sse
-
-# Origens permitidas (SEM espaços; use a URL com esquema https)
-N8N_SECURITY_ALLOWED_ORIGINS=https://ia.cursatto.com.br
-
-# Chave de criptografia (gere com: openssl rand -base64 32)
-N8N_ENCRYPTION_KEY=z82TJlixy2Sul/lpcQRp0a+fxTCjuos+Da7/20ezaMo=
-
-# (Opcional) Logs mais verbosos para diagnóstico
-N8N_LOG_LEVEL=debug
-```
-
-**Importante:** mantenha **apenas uma** origem em `N8N_SECURITY_ALLOWED_ORIGINS` (inclua o `https://`). Evite duplicar host em `X-Forwarded-Host`.
+Crie `~/n8n-docker/.env` e copie o conteúdo do arquivo "env" na pasta do projeto
 
 ---
 
 ## 3) `docker-compose.yml`
 
-Crie `~/n8n-docker/docker-compose.yml`:
+Crie `~/n8n-docker/docker-compose.yml`  copie o conteúdo do arquivo "docker-compose.yml" na pasta do projeto
 
-```yaml
-version: "3.9"
-
-services:
-  n8n_postgres:
-    image: postgres:14
-    container_name: n8n_postgres
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - TZ=${TIMEZONE}
-    volumes:
-      - ./data/postgres:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-    networks:
-      - n8n_net
-
-  n8n:
-    image: docker.n8n.io/n8nio/n8n:1.115.3
-    container_name: n8n
-    restart: unless-stopped
-    depends_on:
-      n8n_postgres:
-        condition: service_healthy
-    user: "1000:1000"
-    environment:
-      - DB_TYPE=postgresdb
-      - DB_POSTGRESDB_HOST=n8n_postgres
-      - DB_POSTGRESDB_PORT=5432
-      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
-      - DB_POSTGRESDB_USER=${POSTGRES_USER}
-      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
-      - GENERIC_TIMEZONE=${TIMEZONE}
-      - TZ=${TIMEZONE}
-      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
-      - N8N_HOST=${N8N_HOST}
-      - N8N_PROTOCOL=${N8N_PROTOCOL}
-      - N8N_PORT=${N8N_PORT}
-      - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL}
-      - WEBHOOK_URL=${WEBHOOK_URL}
-      - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE}
-      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
-      - N8N_PUSH_BACKEND=${N8N_PUSH_BACKEND}
-      - N8N_SECURITY_ALLOWED_ORIGINS=${N8N_SECURITY_ALLOWED_ORIGINS}
-      - N8N_PROXY_HOPS=${N8N_PROXY_HOPS}
-      - N8N_LOG_LEVEL=${N8N_LOG_LEVEL}
-    volumes:
-      - ./data/n8n:/home/node/.n8n
-    # NUNCA exponha 0.0.0.0; mantenha só localhost (Apache faz o proxy)
-    ports:
-      - "127.0.0.1:5678:5678"
-    networks:
-      - n8n_net
-
-networks:
-  n8n_net:
-    name: n8n-docker_n8n_net
 ```
 
 Suba os serviços:
@@ -201,45 +95,7 @@ Crie/edite **(via root)** o arquivo abaixo (ajuste o caminho do seu vhost SSL no
 ```
 
 Conteúdo **completo** (SSE‑only + normalização de cabeçalhos + injeção condicional de Origin):
-
-```apache
-# --- n8n via Apache reverse proxy (SSL vhost, SSE-only) ---
-# Requisitos: mod_proxy, mod_proxy_http, mod_headers, mod_rewrite
-# Caminho típico no cPanel:
-# /etc/apache2/conf.d/userdata/ssl/2_4/iacursattocom/ia.cursatto.com.br/proxy_n8n.conf
-
-# Força HTTP/1.1 (SSE estável atrás de proxy)
-Protocols http/1.1
-
-ProxyPreserveHost On
-ProxyRequests Off
-AllowEncodedSlashes NoDecode
-ProxyAddHeaders On
-ProxyTimeout 900
-
-# Normaliza cabeçalhos de forward (evita duplicar X-Forwarded-Host)
-RequestHeader unset X-Forwarded-Host
-RequestHeader set   X-Forwarded-Host "ia.cursatto.com.br" early
-RequestHeader set   X-Forwarded-Proto "https" early
-RequestHeader set   X-Forwarded-Port  "443"   early
-
-# --- injeta Origin SOMENTE se vier vazio no /rest/push (SSE) ---
-RewriteEngine On
-RewriteCond %{REQUEST_URI} ^/rest/push [NC]
-RewriteCond %{HTTP:Origin} ^$ [NC]
-RewriteRule ^ - [E=MISSING_ORIGIN:1]
-RequestHeader set Origin "https://ia.cursatto.com.br" env=MISSING_ORIGIN
-
-# --- PUSH por SSE (HTTP), sem websocket e sem nocanon ---
-ProxyPass        /rest/push  http://127.0.0.1:5678/rest/push keepalive=On retry=0 flushpackets=on timeout=900
-ProxyPassReverse /rest/push  http://127.0.0.1:5678/rest/push
-
-# --- Demais rotas para o n8n ---
-ProxyPass        /  http://127.0.0.1:5678/ connectiontimeout=60 timeout=900 keepalive=On
-ProxyPassReverse /  http://127.0.0.1:5678/
-
-# Permitir payloads grandes (opcional)
-LimitRequestBody 0
+do arquivo "proxy_n8n_ssl.conf" na pasta do projeto
 ```
 
 Aplique e reinicie o Apache:
@@ -259,12 +115,7 @@ Arquivo:
 /etc/apache2/conf.d/userdata/ssl/2_4/iacursattocom/ia.cursatto.com.br/modsec_n8n.conf
 ```
 
-Conteúdo:
-```apache
-<LocationMatch "^/rest/push/?">
-  SecRuleEngine Off
-</LocationMatch>
-```
+Conteúdo: Arquivo "modsec_n8n.conf" da pasta do projeto
 
 Reaplique o include e reinicie o Apache (mesmos comandos acima).
 
