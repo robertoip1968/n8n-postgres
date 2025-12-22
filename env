@@ -1,3 +1,4 @@
+
 # Fuso
 TIMEZONE=America/Cuiaba
 
@@ -26,7 +27,7 @@ WEBHOOK_URL=https://ia.cursatto.com.br/
 N8N_EDITOR_BASE_URL=https://ia.cursatto.com.br
 
 # Push por SSE (compatível com Apache)
-N8N_PUSH_BACKEND=sse
+N8N_PUSH_BACKEND=websocket
 
 # Origens permitidas (SEM espaços; use a URL com esquema https)
 N8N_SECURITY_ALLOWED_ORIGINS=https://ia.cursatto.com.br
